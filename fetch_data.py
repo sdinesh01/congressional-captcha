@@ -15,88 +15,108 @@ import mimetypes
 import tqdm 
 
 class FetchData: 
+    '''
+    This class produces a csv with Legiscan data
+    '''
     
-    PATH_OUTPUT = './sample-data-2/'
-    
-    def __init__(self
+    def __init__(self, 
+                 api_key = os.environ.get('LEGISCAN_API_KEY'), 
+                 num_datasets = 20, 
+                 PATH_OUT = './sample-data' 
                  ): 
-        self.api_key = os.environ.get('LEGISCAN_API_KEY')
-        self.legis = LegiScan(self.api_key)
-        self.__test_dataset__()
+        self.__api_key = api_key
+        self.legis = LegiScan(self.__api_key)
+        self.num_datasets = num_datasets
+        self.PATH_OUT = PATH_OUT
+        self.check_directories()
+        #self.create_test_dataset_list()
+        #self.decode_test_dataset()
         self.find_json()
         self.process_json()
         self.create_dataframe()
-       # self.df_to_csv()
+        self.df_to_csv()
         
         
     def check_directories(self): 
-        if not os.path.exists(self.PATH_OUTPUT): 
-            os.mkdir(self.PATH_OUTPUT)
+        if not os.path.exists(self.PATH_OUT): 
+            os.mkdir(self.PATH_OUT)
         return
-    
         
-    def __test_dataset__(self): 
-        self.__datasets = self.legis.get_dataset_list()
-        self.__dataset = self.legis.get_dataset(self.__datasets[20]['session_id'], self.__datasets[20]['access_key'])
+    def create_test_dataset_list(self): 
+        self.datasets = self.legis.get_dataset_list()
+        self.dataset = self.legis.get_dataset(self.datasets[self.num_datasets]['session_id'], self.datasets[self.num_datasets]['access_key'])
         return 
-        
-    def get_test_dataset(self): 
-        return self.__dataset.copy()
     
     def decode_test_dataset(self): 
-        # we need to decode the datasets into a normal file, using Python's zipfile module here
-        dataset = self.__test_dataset__()
-        __z_bytes__ = base64.b64decode(dataset['zip'])
-
-        # create an in-memory stream for bytes data (io.BytesIO()) from decoded base64,
-        #     then create a zipfile object using the zipfile module to store the bytes
-        __z__ = zipfile.ZipFile(io.BytesIO(__z_bytes__))
-
+        #dataset = self.create_test_dataset_list()
+        self.z_bytes = base64.b64decode(self.dataset['zip'])
+        self.zip = zipfile.ZipFile(io.BytesIO(self.z_bytes))
+        
         # extract all files in the zip file
-        __z__.extractall(PATH_OUTPUT)
+        self.zip.extractall(self.PATH_OUT)
         return
-        
-    def find_json(self): 
-        filenames = glob.glob("bill_data/*/*/bill/*.json")
-        return filenames
     
-    def get_json_filenames(self): 
-        return self.find_json()
-        
-    def process_json(self):
-        for filename in self.find_json(): 
+    def find_json(self): 
+        self.filenames = glob.glob('./sample-data/' + "/*/*/bill/*.json", recursive = True)
+        return 
+         
+    def process_json(self): 
+        self.all_bill_data = {}
+        for filename in self.filenames:
             with open(filename) as file:
-                bill_data = {}
+                self.bill_data = {}
                 # We need to do a little string replacing so the 
-                json_str = file.read().replace('"0000-00-00"', 'null')
-                content = json.loads(json_str)['bill']
+                self.json_str = file.read().replace('"0000-00-00"', 'null')
+                self.content = json.loads(self.json_str)['bill']
 
-                bill_data['bill_id'] = content['bill_id']
-                bill_data['code'] = os.path.splitext(os.path.basename(filename))[0]
-                bill_data['bill_number'] = content['bill_number']
-                bill_data['title'] = content['title']
-                bill_data['description'] = content['description']
-                bill_data['state'] = content['state']
-                bill_data['session'] = content['session']['session_name']
-                bill_data['filename'] = filename
-                bill_data['status'] = content['status']
-                bill_data['status_date'] = content['status_date']
+                self.bill_data['bill_id'] = self.content['bill_id']
+                self.bill_data['bill_number'] = self.content['bill_number']
+                self.bill_data['title'] = self.content['title']
+                self.bill_data['description'] = self.content['description']
+                self.bill_data['state'] = self.content['state']
+                self.bill_data['session'] = self.content['session']['session_name']
+                self.bill_data['filename'] = filename
+                self.bill_data['status'] = self.content['status']
+                self.bill_data['status_date'] = self.content['status_date']
 
                 try:
-                    bill_data['url'] = content['texts'][-1]['state_link']
+                    self.bill_data['url'] = self.content['texts'][-1]['state_link']
                 except:
-                    pass
-            return pd.Series(bill_data)
+                    self.bill_data['url'] = None
         
-        def create_dataframe(self): 
-            filenames = self.get_json()
+            self.all_bill_data[filename] = self.bill_data
+        return
             
-            df = pd.Series(filenames).swifter.apply(self.process_json)
-            return df
-        
-        def get_dataframe(self): 
-            return self.create_dataframe
-        
-        def df_to_csv(self): 
-            df.to_csv('PATH_OUTPUT' + '/bills-with-urls.csv', index=False)
-            return 
+    def create_dataframe(self):
+        # self.data_for_dataframe = defaultdict(dict)
+        # for i in self.all_bill_data:
+        #     self.data_for_dataframe[self.all_bill_data[i]]
+        #self.data_for_dataframe = {key:value for _ in self.all_bill_data.values() }
+        #self.df = pd.DataFrame.from_dict(self.all_bill_data.keys())
+        COLUMNS = ['bill_id','bill_number','title','description','state','session','filename','status','status_date','url']
+        self.dataframe_final = pd.DataFrame(columns=COLUMNS)
+        keys_all_bills = list(self.all_bill_data.keys())
+        for i in keys_all_bills:
+            values = []
+            for j in list((self.all_bill_data[i]).keys()):
+                values.append(self.all_bill_data[i][j])
+            self.dataframe_final.loc[i] = values
+        self.dataframe_final.reset_index(inplace=True)
+        try: 
+            self.dataframe_final.drop(columns=['index'], axis=1, inplace=True)
+        except: 
+            pass
+        return
+
+    def df_to_csv(self): 
+        self.dataframe_final.to_csv('./sample-data/' + '/bills-with-urls.csv', index=False)
+        return 
+
+    def get_test_datasets(self): 
+        return self.datasets.copy()
+    
+    def get_json_filenames(self): 
+        return self.filenames
+    
+    def get_dataframe(self): 
+        return self.dataframe_final

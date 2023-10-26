@@ -1,6 +1,5 @@
 from legiscan import LegiScan
 import legiscan
-
 import os
 import pandas as pd
 import swifter
@@ -8,11 +7,7 @@ import zipfile
 import base64
 import io
 import glob
-import time
 import json
-import requests
-import mimetypes
-import tqdm 
 
 class FetchData: 
     '''

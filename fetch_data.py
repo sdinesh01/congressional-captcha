@@ -83,11 +83,6 @@ class FetchData:
         return
             
     def create_dataframe(self):
-        # self.data_for_dataframe = defaultdict(dict)
-        # for i in self.all_bill_data:
-        #     self.data_for_dataframe[self.all_bill_data[i]]
-        #self.data_for_dataframe = {key:value for _ in self.all_bill_data.values() }
-        #self.df = pd.DataFrame.from_dict(self.all_bill_data.keys())
         COLUMNS = ['bill_id','bill_number','title','description','state','session','filename','status','status_date','url']
         self.dataframe_final = pd.DataFrame(columns=COLUMNS)
         keys_all_bills = list(self.all_bill_data.keys())

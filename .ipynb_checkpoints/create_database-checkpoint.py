@@ -18,23 +18,26 @@ class MyDB:
                  table_type: str = None,
                  bills_drop: bool = False,
                  any_drop: bool = False, 
-                 input_lim: int = None
+                 input_lim: int = None, 
+                 chunk_size: int = None
                 ):
     
         self.path_data = os.path.join(os.path.dirname(__file__), 'sample-data')
-        #self.path_data = os.path.join(os.path.dirname(__file__), 'data')
+        # self.path_data = os.path.join(os.path.dirname(__file__), 'data')
         self.path_db = os.path.join(self.path_data, 'legislation.db')
         self.add_data = add_data
         self.table_type = table_type
         self.bills_drop = bills_drop
         self.any_drop = any_drop
         self.input_lim = input_lim
+        self.chunk_size = chunk_size
         
         self.__validate_inputs()
 
         if self.any_drop:
             self.build_tables()
-            #self.fill_tables()
+            self.fill_table_chunks()
+            # self.fill_tables()
         # elif self.add_data:
         #     self.fill_tables()
         #     return
@@ -61,7 +64,7 @@ class MyDB:
         return
     
     def connect(self):
-        self.conn = sqlite3.connect(self.path_db)
+        self.conn = sqlite3.connect(self.path_db, isolation_level=None)
         self.curs = self.conn.cursor()
         return 
     
@@ -73,7 +76,7 @@ class MyDB:
         '''
         Reads .csv file into a Pandas dataframe, and returns the dataframe.
         ''' 
-        PATH = './data/bills-with-urls.csv'
+        PATH = './sample-data/bills-with-urls.csv'
         df = pd.read_csv(PATH)
         
         df['error'] = np.nan
@@ -81,7 +84,6 @@ class MyDB:
         df['processed_at'] = np.nan
    
         return df
-    
     
     def build_tables(self):
         ''' 
@@ -133,7 +135,7 @@ class MyDB:
         self.connect()
 
         df = self.load_df()
-
+        row_counter = 0
         row_input_lim = 0
 
         try:
@@ -144,8 +146,12 @@ class MyDB:
                     if len(x) == 0:
                         # Insert the record if it did not
                         self.curs.execute(SQ.SQL_INSERT_TBILLS, row)
-                
+                        row_counter += 1
+                        print(row_counter)
+                        clear_output(wait=True)
+            
             self.conn.commit()
+            self.close()
 
         except Exception:
             # Undo all changes since the last commit
@@ -155,10 +161,21 @@ class MyDB:
             # Print the exception information
             traceback.print_exc()
 
-        self.close()
-
         return
     
+    def fill_table_chunks(self): 
+        PATH = './sample-data/bills-with-urls.csv'
+        df = pd.read_csv(PATH)
+        chunk_counter = 0
+        self.connect()
+        for c in pd.read_csv(PATH, chunksize=self.chunk_size):
+            chunk_counter += 1 
+            c.to_sql(name="tBills", index=False,con=self.conn, chunksize=self.chunk_size, if_exists="append")
+            print(chunk_counter)
+            clear_output(wait=True)
+        self.close()
+    
+        
     def get_tBills(self):
         '''
         Returns the tBills table from the provided database as a Pandas dataframe
@@ -176,4 +193,3 @@ class MyDB:
         results = pd.read_sql(sql, self.conn, params=params)
         self.close()
         return results
-   

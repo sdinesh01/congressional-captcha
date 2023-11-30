@@ -22,8 +22,7 @@ class MyDB:
                  chunk_size: int = None
                 ):
     
-        #self.path_data = os.path.join(os.path.dirname(__file__), 'sample-data')
-        self.path_data = os.path.join(os.path.dirname(__file__), 'data')
+        self.path_data = os.path.join(os.path.dirname(__file__), 'sample-data')
         self.path_db = os.path.join(self.path_data, 'legislation.db')
         self.add_data = add_data
         self.table_type = table_type
@@ -36,8 +35,7 @@ class MyDB:
 
         if self.any_drop:
             self.build_tables()
-            print("filling tables!")
-            self.fill_tables()
+            self.fill_table_chunks()
             # self.fill_tables()
         # elif self.add_data:
         #     self.fill_tables()
@@ -77,7 +75,7 @@ class MyDB:
         '''
         Reads .csv file into a Pandas dataframe, and returns the dataframe.
         ''' 
-        PATH = './data/bills-with-urls.csv'
+        PATH = './sample-data/bills-with-urls.csv'
         df = pd.read_csv(PATH)
         
         df['error'] = np.nan
@@ -104,7 +102,7 @@ class MyDB:
                 self.curs.execute("DROP TABLE IF EXISTS tBills;")
        
             if self.bills_drop:
-                sql = SQ.SQL_FULL_BILLS_BUILD
+                sql = SQ.SQL_BILLS_BUILD
                 self.curs.execute(sql)
 
         self.close()
@@ -138,13 +136,9 @@ class MyDB:
         df = self.load_df()
         row_counter = 0
         row_input_lim = 0
-        
-        df_not_nan = df.loc[df['url'].notnull()]
-        
-        sample_df = df_not_nan.groupby(["state", "session"]).sample(n=1, random_state=1)
 
         try:
-            for i, row in enumerate(sample_df.to_dict(orient='records')):
+            for i, row in enumerate(df.to_dict(orient='records')):
                 if row_input_lim < self.input_lim:
                     # Check if Bills exists
                     x = pd.read_sql(SQ.SQL_CHECK_BILLS, self.conn, params=row)
@@ -169,9 +163,8 @@ class MyDB:
         return
     
     def fill_table_chunks(self): 
-        PATH = './data/bills-with-urls.csv'
+        PATH = './sample-data/bills-with-urls.csv'
         df = pd.read_csv(PATH)
-        sample_df = df.groupby(["state"]).sample(n=1, random_state=1)
         chunk_counter = 0
         self.connect()
         for c in pd.read_csv(PATH, chunksize=self.chunk_size):

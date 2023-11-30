@@ -1,6 +1,6 @@
 SQL_BILLS_BUILD = """
             CREATE TABLE tBills
-            (
+            (   
                 bill_id INTEGER NOT NULL PRIMARY KEY,
                 bill_number INTEGER NOT NULL,
                 title TEXT,
@@ -11,7 +11,7 @@ SQL_BILLS_BUILD = """
                 status INTEGER,
                 status_date TEXT, 
                 error TEXT,
-                content TEXT NOT NULL,
+                content TEXT,
                 processed_at TIMESTAMP,
                 url TEXT 
             );"""
@@ -31,6 +31,7 @@ SQL_FULL_BILLS_BUILD = """
                 status_date TEXT, 
                 error TEXT,
                 content TEXT, 
+                processed_at TIMESTAMP,
                 url TEXT 
             );"""
 

@@ -10,11 +10,9 @@ USE_OCR = False
 
 class Bill:
 
-    def __init__(self, bill_id, url, conn, state, session):
+    def __init__(self, bill_id, url, conn):
         self.bill_id = bill_id,
         self.url = url
-        self.state = state
-        self.session = session
         try:
             # A little cleaning for URLs that have moved domains
             self.url = self.url.replace("www.rilin.state.ri.us", "webserver.rilin.state.ri.us")
@@ -75,9 +73,9 @@ class Bill:
         return Bill(result[0], result[1], conn)
         
     @classmethod
-    def unprocessed(cls, conn, self, limit=10):
-        selected_state = self.state[0]
-        selected_session = self.session[0]
+    def unprocessed(cls, conn, limit=10):
+        selected_state = self.state
+        selected_session = self.session
         results = conn.execute("""
             SELECT bill_id, url
             FROM tBills
@@ -89,7 +87,9 @@ class Bill:
     
     @classmethod
     def process_queue(cls, conn, limit=10):
-        todo = Bill.unprocessed(conn, limit)
+        selected_state = self.state
+        selected_session = self.session
+        todo = Bill.unprocessed(conn, self, limit)
         for bill in todo:
             bill.update_content()
             
